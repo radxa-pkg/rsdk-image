@@ -1,0 +1,102 @@
+#!/bin/bash
+
+set -e
+
+# rsdk-image: run the installed offline image with sensible mounts
+# Usage: rsdk-image [--name NAME] [--] [docker run args...]
+
+IMAGE_NAME="rsdk-image"
+IMG_TAR="/usr/share/rsdk-image/image.tar"
+DOCKER_USER="rsdk"
+EXTRA_ARGS=""
+DOCKER_RUN_OPTS=(
+  -id
+  --privileged
+  --user "$(id -u):$(id -g)"
+  -h "$IMAGE_NAME"
+  -e "TERM=xterm-256color"
+  -v /etc/resolv.conf:/etc/resolv.conf:ro
+  -v /etc/localtime:/etc/localtime:ro
+  -v /dev:/dev
+  -v /sys:/sys:ro
+  -v /tmp:/tmp
+  -v "${HOME}:/home/$DOCKER_USER"
+)
+DOCKER_EXEC_OPTS=(
+  -it
+)
+
+if ! command -v docker >/dev/null 2>&1; then
+  echo "ERROR: docker is not installed or not in PATH" 1>&2
+  exit 2
+fi
+
+# Ensure image exists locally; if not, try loading packaged tar
+if [ -f "$IMG_TAR" ]; then
+  # check whether an image with the hinted name exists
+  if [ -z "$(docker images -q "$IMAGE_NAME")" ]; then
+    echo "Loading image from $IMG_TAR ..."
+    docker load -i "$IMG_TAR" >/dev/null || true
+  fi
+else
+  echo "Note: packaged image tar not found at $IMG_TAR, will try to use existing images"
+fi
+
+# Pass through host proxy environment variables if present
+for _var in HTTP_PROXY HTTPS_PROXY NO_PROXY http_proxy https_proxy no_proxy; do
+  _val=$(printenv "$_var" 2>/dev/null || true)
+  if [ -n "$_val" ]; then
+    DOCKER_RUN_OPTS+=( "-e" "$_var=$_val" )
+  fi
+done
+
+help() {
+  cat <<EOF
+Usage: $0 [--name NAME] [-m DISTRO_MIRROR] [--] [docker run args...]
+Options:
+  --name NAME              Set container name
+  --help, -h               Show this help message
+
+Example: $0 --name rsdk -- bash
+EOF
+}
+
+# Allow passing extra args to docker run
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --)
+      shift
+      EXTRA_ARGS="$@"
+      break
+      ;;
+    --name)
+      DOCKER_RUN_OPTS+=( "--name" "$2" )
+      CONTAINER_NAME="$2"
+      shift 2
+      ;;
+    --help|-h)
+      help
+      exit 0
+      ;;
+    *)
+      echo "Unknown option or positional arg"
+      help
+      exit 0
+      ;;
+  esac
+done
+
+if [ -z "$EXTRA_ARGS" ]; then
+  EXTRA_ARGS="/bin/bash"
+fi
+
+if docker ps -a --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
+  if ! docker ps --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
+    docker rm "${CONTAINER_NAME}"
+    docker run "${DOCKER_RUN_OPTS[@]}" "$IMAGE_NAME" $EXTRA_ARGS
+  fi
+else
+  docker run "${DOCKER_RUN_OPTS[@]}" "$IMAGE_NAME" $EXTRA_ARGS
+fi
+
+exec docker exec "${DOCKER_EXEC_OPTS[@]}" $CONTAINER_NAME $EXTRA_ARGS
