@@ -1,18 +1,20 @@
 Source: rsdk-image
 Maintainer: "Radxa Computer Co., Ltd" <dev@radxa.com>
-Section: admin
+Section: utils
 Priority: standard
 Standards-Version: 4.6.0
 Build-Depends: debhelper (>=12~),
                devscripts,
                lintian,
-               dh-exec,
                pandoc,
+               dh-exec,
+               docker.io | docker-ce
 
 Package: rsdk-image
-Architecture: all
-Section: admin
+Architecture: any
+Section: utils
 Priority: optional
-Depends: ${misc:Depends},
-Description: rsdk-image
- This package provides the rsdk-image.
+Depends: ${misc:Depends}, docker.io | docker-ce
+Description: Offline Docker image package for Radxa SDK
+ This package contains a pre-pulled Docker image tarball and will attempt
+ to load it into Docker on installation if Docker is available on the host.

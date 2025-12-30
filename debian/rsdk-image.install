@@ -1,0 +1,3 @@
+scripts/rsdk-image usr/bin/
+man/man8/rsdk-image.8 usr/share/man/man8/
+image.tar usr/share/rsdk-image/
