@@ -1,0 +1,8 @@
+{
+  "*": {
+    "Releases": [
+      "rsdk",
+      "rsdk-test"
+    ]
+  }
+}
