@@ -52,10 +52,9 @@
   "workspaceMount": "source=${localWorkspaceFolder}/..,target=/workspaces,type=bind,consistency=cached",
   "runArgs": [
     // https://github.com/moby/moby/issues/27195#issuecomment-1410745778
-    "--ulimit", "nofile=1024:524288",
-    // Docker gid is 118
-    "--group-add", "118"
+    "--ulimit", "nofile=1024:524288"
   ],
+  "onCreateCommand": "gid=$(stat -c '%g' /var/run/docker.sock); getent group $gid >/dev/null || sudo groupadd -g $gid dockerhost; sudo usermod -aG $(getent group $gid | cut -d: -f1) $(id -un)",
   "overrideCommand": true,
   "updateContentCommand": "make devcontainer_setup"
 }
